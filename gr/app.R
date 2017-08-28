@@ -1,6 +1,6 @@
 # This R script is created as a Shiny application to use raw agricultural commodities data, 
 # available by Quandl, and create plots and statistics.
-# The code is available under MIT license, as stipulated in https://github.com/iliastsergoulas/shinyapps/blob/master/LICENSE.
+# The code is available under MIT license, as stipulated in https://github.com/iliastsergoulas/agri_prices/blob/master/LICENSE.
 # Author: Ilias Tsergoulas, Website: www.agristats.eu
 
 library(shiny)
@@ -75,13 +75,13 @@ sidebar <- dashboardSidebar(sidebarMenu(
     selectInput('period', 'Ορίζοντας πρόβλεψης (μήνες)', 
                 choices = c("6", "12", "18", "24", "30", "36"), selected='12')),
     tags$footer(tags$p("Η παρούσα εφαρμογή βασίζεται σε δεδομένα του ιστοτόπου Quandl.")))
-frow1 <- fluidRow( # Creating row of two diagrams
+frow1 <- fluidRow( # Creating row
     title = "Συνολικά",
     status="success",
     collapsible = TRUE, 
     mainPanel(dygraphOutput("view"), width='98%')
 )
-frow2 <- fluidRow( # Creating row of two diagrams
+frow2 <- fluidRow( # Creating row
     status="success",
     collapsible = TRUE, 
     mainPanel(uiOutput("plots"), width='98%')
@@ -115,10 +115,10 @@ server <- function(input, output) {
             dyAxis("y", label = "Τιμή προϊόντος")%>%
             dyRangeSelector(height = 20)
     })
-    mylength<-reactive({
+    mylength<-reactive({ # Getting number of datasets
         mylength<-length(unique(mydata()$Description))
     })
-    output$plots <- renderUI({
+    output$plots <- renderUI({ # Calling createplots() function and plottind dygraphs
         createPlots()
         plot_output_list <- lapply(1:mylength(), function(i) {
             plotname <- paste("plot", i, sep="")
@@ -128,7 +128,7 @@ server <- function(input, output) {
         # to display properly.
         do.call(tagList, plot_output_list)
     })
-    createPlots <- reactive ({
+    createPlots <- reactive ({ # Creating dygraph plots for as many datasets are available
         # Call renderPlot for each one. Plots are only actually generated when they
         # are visible on the web page.
         for (i in 1:mylength()) {
@@ -137,18 +137,18 @@ server <- function(input, output) {
             # of when the expression is evaluated.
             local({
                 my_i <- i
-                plotname=paste("plot", my_i, sep="")
+                plotname=paste("plot", my_i, sep="") # Setting flexible names
                 mydata_product <- unique(mydata()$Description)[my_i]
                 mydata_ts<-mydata()[which(mydata()$Description==mydata_product),]
                 mydata_ts<-xts(mydata_ts, order.by=as.POSIXct(mydata_ts$Date))
-                mydata_predicted <- forecast(as.numeric(mydata_ts$Value), h=as.numeric(input$period))
+                mydata_predicted <- forecast(as.numeric(mydata_ts$Value), h=as.numeric(input$period)) # Creating forecast
                 mydata_predicted <- data.frame(Date = seq(mdy('06/30/2017'), by = 'months', length.out = as.numeric(input$period)),
                                     Forecast = mydata_predicted$mean,Hi_95 = mydata_predicted$upper[,2],
                                     Lo_95 = mydata_predicted$lower[,2])
                 mydata_xts <- xts(mydata_predicted, order.by = as.POSIXct(mydata_predicted$Date))
-                mydata_predicted <- merge(mydata_ts, mydata_xts)
+                mydata_predicted <- merge(mydata_ts, mydata_xts) # Merging xts object with forecast
                 mydata_predicted <- mydata_predicted[,c("Value", "Forecast", "Hi_95", "Lo_95")]
-                output[[plotname]] <- renderDygraph({ # Creating timeline for commodities
+                output[[plotname]] <- renderDygraph({ # Rendering dygraphs
                     dygraph(mydata_predicted, main=mydata_ts[1,3], group = "commodities")%>%
                         dyAxis("y", label = "Τιμή προϊόντος")%>%
                         dyRangeSelector(height = 20)
