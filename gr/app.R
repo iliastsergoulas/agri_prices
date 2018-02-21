@@ -94,7 +94,7 @@ server <- function(input, output) {
     mydata <- reactive({ # Adding reactive data information
         data_filtered<-as.data.frame(data_quandl[which(data_quandl$data_product==input$commodity),])
         mydata<-data.frame(Date= character(0), Value= character(0), Description=character(0))
-        for (i in 1:nrow(data_filtered)){
+        for (i in 1:nrow(data_filtered)){ # Getting prices data based on Quandl code
             temp<-Quandl(as.character(data_filtered[i,2]), collapse = "monthly")
             temp$Description<-as.character(data_filtered[i,1])
             colnames(temp)<-c("Date", "Value", "Description")
@@ -102,7 +102,7 @@ server <- function(input, output) {
         }
         mydata
     })
-    mydata_multiple<- reactive({ # Reshaping mydata dataframe
+    mydata_multiple<- reactive({ # Reshaping mydata dataframe for multiple view
         unique_descriptions<-unique(mydata()$Description)
         mydata_multiple<-reshape(mydata(), direction = "wide", idvar = "Date", timevar = "Description")
         #colnames(mydata_multiple)<-c("Date", unique_descriptions[1], unique_descriptions[2], unique_descriptions[3])
@@ -118,7 +118,7 @@ server <- function(input, output) {
     mylength<-reactive({ # Getting number of datasets
         mylength<-length(unique(mydata()$Description))
     })
-    output$plots <- renderUI({ # Calling createplots() function and plottind dygraphs
+    output$plots <- renderUI({ # Calling createplots() function and plotting dygraphs
         createPlots()
         plot_output_list <- lapply(1:mylength(), function(i) {
             plotname <- paste("plot", i, sep="")
@@ -128,21 +128,18 @@ server <- function(input, output) {
         # to display properly.
         do.call(tagList, plot_output_list)
     })
-    createPlots <- reactive ({ # Creating dygraph plots for as many datasets are available
-        # Call renderPlot for each one. Plots are only actually generated when they
-        # are visible on the web page.
+    createPlots <- reactive ({ # Creating dygraph plots for all available datasets
+        # Calling renderPlot for each one.
         for (i in 1:mylength()) {
-            # Need local so that each item gets its own number. Without it, the value
-            # of i in the renderPlot() will be the same across all instances, because
-            # of when the expression is evaluated.
+            # With local each item gets its own number.
             local({
                 my_i <- i
                 plotname=paste("plot", my_i, sep="") # Setting flexible names
-                mydata_product <- unique(mydata()$Description)[my_i]
+                mydata_product <- unique(mydata()$Description)[my_i] # Getting unique descriptions
                 mydata_ts<-mydata()[which(mydata()$Description==mydata_product),]
                 mydata_ts<-xts(mydata_ts, order.by=as.POSIXct(mydata_ts$Date))
                 mydata_predicted <- forecast(as.numeric(mydata_ts$Value), h=as.numeric(input$period)) # Creating forecast
-                mydata_predicted <- data.frame(Date = seq(mdy('06/30/2017'), by = 'months', length.out = as.numeric(input$period)),
+                mydata_predicted <- data.frame(Date = seq(mdy('11/30/2017'), by = 'months', length.out = as.numeric(input$period)),
                                     Forecast = mydata_predicted$mean,Hi_95 = mydata_predicted$upper[,2],
                                     Lo_95 = mydata_predicted$lower[,2])
                 mydata_xts <- xts(mydata_predicted, order.by = as.POSIXct(mydata_predicted$Date))
